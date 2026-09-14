@@ -1,0 +1,55 @@
+// Local, explainable heuristics. These scores are not clinical probabilities.
+export const normalizeEmotionText = value => String(value ?? '')
+  .normalize('NFC').toLowerCase().replace(/\s+/g, '');
+
+export function emotionClauses(input) {
+  const source = String(input ?? '').slice(0, 4000);
+  const parts = source.split(/[.!?\n,;]+|하지만|그렇지만|그런데|그래도|지만|는데|그리고|면서/);
+  const hasPresent = /지금|이제|현재|오늘은/.test(source);
+  return parts.map(raw => {
+    const text = normalizeEmotionText(raw);
+    const reported = /^(?:친구|엄마|아빠|동생|언니|오빠|누나|형|그사람|걔|그녀|그)(?:가|이|는|은)/.test(text)
+      && !/나는|내가|나도|내마음|내기분/.test(text);
+    const hypothetical = /(?:으면|다면|라면|을까봐|까봐)/.test(text);
+    const past = hasPresent && /어제|예전|아까|지난|그때/.test(text) && !/지금|이제|현재/.test(text);
+    return { text, raw: raw.trim(), weight: reported ? 0 : hypothetical ? 0.3 : past ? 0.3 : 1,
+      reason: reported ? '다른 사람의 상태' : hypothetical ? '가정·예상 표현' : past ? '과거의 상태' : null };
+  }).filter(x => x.text);
+}
+
+function isNegated(text, index, phrase) {
+  const before = text.slice(Math.max(0, index - 5), index);
+  const after = text.slice(index + phrase.length, index + phrase.length + 14);
+  const intrinsicallyNegative = /안|못|없|싫|않/.test(phrase);
+  return (!intrinsicallyNegative && /(?:안|못|전혀|별로)$/.test(before)) ||
+    /^(?:(?:하|해|되|지|진|지는|하지|하진|하지는|되지는|하다는|다는|한건|한게|은건|은게|은|는|다|고싶지))*?(?:않|아니|못)/.test(after);
+}
+
+export function scoreEmotionKeywords(clause, keywords) {
+  const spans = [];
+  const phrases = [...new Set(keywords.map(normalizeEmotionText))].sort((a, b) => b.length - a.length);
+  for (const phrase of phrases) {
+    if (!phrase) continue;
+    if (phrase === '시기' && !/시기(?:해|하|가나|심)/.test(clause.text)) continue;
+    if (phrase === '무료' && !/무료(?:해|하|함)/.test(clause.text)) continue;
+    // Avoid obvious noun collisions (영화가, 화가 직업, 기대했던 결과).
+    if (phrase === '화가' && !/화가(?:나|났|치밀|솟|폭발)/.test(clause.text)) continue;
+    if (phrase === '기대' && /기대(?:했|에못|가무너)/.test(clause.text)) continue;
+    let start = 0;
+    while (start < clause.text.length) {
+      const index = clause.text.indexOf(phrase, start);
+      if (index < 0) break;
+      const end = index + phrase.length;
+      if (!isNegated(clause.text, index, phrase) && !spans.some(s => index < s.end && end > s.start)) {
+        const nearby = clause.text.slice(Math.max(0, index - 5), end + 4);
+        const strength = /너무|정말|진짜|엄청|완전/.test(nearby) ? 1.3 : /조금|약간|살짝|좀/.test(nearby) ? 0.75 : 1;
+        spans.push({ start: index, end, phrase, strength });
+      }
+      start = end;
+    }
+  }
+  // Repeating the same word is not independent evidence.
+  const unique = [...new Map(spans.map(s => [s.phrase, s])).values()].slice(0, 3);
+  return { score: unique.reduce((sum, s) => sum + 1.5 * s.strength * clause.weight, 0),
+    phrases: clause.weight > 0 ? unique.map(s => s.phrase) : [] };
+}
