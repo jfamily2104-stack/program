@@ -798,7 +798,7 @@ export default function ExploreScreen({
                   </Text>
 
                   <Text style={styles.confidence}>
-                    규칙 기반 추정
+                    입력한 내용을 바탕으로 살펴본 감정
                   </Text>
                 </View>
               </View>

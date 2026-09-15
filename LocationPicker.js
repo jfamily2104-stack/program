@@ -74,7 +74,7 @@ export default function LocationPicker({
       onChange({
         ...point,
         name:
-          name === '현재 위치'
+          (name === '현재 위치' || name === '지도에서 선택한 장소')
             ? rows[0]?.name || name
             : name,
         address: addressOf(rows[0])
@@ -239,8 +239,7 @@ export default function LocationPicker({
                     setCoordinate(x, x.name);
                   }}
                 >
-                  {x.name} · {x.latitude.toFixed(4)},{' '}
-                  {x.longitude.toFixed(4)}
+                  {x.name}
                 </Button>
               ))}
             </>
@@ -291,6 +290,19 @@ export default function LocationPicker({
           >
             장소 없이 기록
           </Button>
+
+          <TextInput
+            value={value?.name || ''}
+            editable={!disabled}
+            onChangeText={name => {
+              generation.current++;
+              if (coordinateOf(value)) onChange({ ...value, name });
+            }}
+            style={s.input}
+            placeholder="장소 이름 (예: 집 앞 공원)"
+            accessibilityLabel="장소 이름"
+          />
+          <Text style={s.subtitle}>{locationLabel({ location: value })}</Text>
 
           <Button disabled={busy} onPress={close}>
             이 장소로 설정

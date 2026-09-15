@@ -157,9 +157,7 @@ export function locationLabel(item) {
       )
       .join(' · ') ||
     (coordinateOf(item?.location)
-      ? `${Number(item.location.latitude).toFixed(5)}, ${Number(
-          item.location.longitude
-        ).toFixed(5)}`
+      ? '지도에 표시된 장소'
       : '장소 미지정')
   );
 }

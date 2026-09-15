@@ -185,9 +185,12 @@ export default function HomeScreen({
               key={x.id}
               coordinate={coordinateOf(x.location)}
               title={x.title}
+              anchor={{ x: 0.5, y: 0.5 }}
               onPress={() => select(x)}
             >
-              <Avatar character={x.character} size={32} />
+              <View collapsable={false} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+                <Avatar character={x.character} size={24} />
+              </View>
             </Marker>
           ))}
         </MapView>
