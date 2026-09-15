@@ -11,7 +11,8 @@ import {
 import {
   personalizeActions
 } from './EmotionLearning';
-import { emotionClauses, scoreEmotionKeywords } from './EmotionText';
+import { emotionClauses, scoreEmotionKeywords, normalizeEmotionText, keywordMatches } from './EmotionText';
+import { EMOTION_VOCABULARY, NEED_VOCABULARY, extendedWords, recognizeActivities } from './EmotionLanguage';
 
 export {
   DEFAULT_LEARNING_DATA,
@@ -24,10 +25,7 @@ export {
   EMOTION_GROUPS
 } from './EmotionData';
 
-const compact = text =>
-  String(text ?? '')
-    .toLowerCase()
-    .replace(/\s+/g, '');
+const compact = normalizeEmotionText;
 
 const option = (
   id,
@@ -633,6 +631,11 @@ const needPatterns = {
   ]
 };
 
+const allNeedPatterns = { ...needPatterns };
+for (const id of Object.keys(NEED_VOCABULARY)) {
+  allNeedPatterns[id] = extendedWords(NEED_VOCABULARY, id, needPatterns[id]);
+}
+
 const stateRules = [
   {
     id: 'headache',
@@ -698,7 +701,7 @@ const stateRules = [
     name: '연결되고 싶은 상태',
     emoji: '🫂',
     patterns:
-      needPatterns.connection
+      allNeedPatterns.connection
   },
 
   {
@@ -706,187 +709,16 @@ const stateRules = [
     name: '혼자 있고 싶은 상태',
     emoji: '🌙',
     patterns:
-      needPatterns.alone
+      allNeedPatterns.alone
   }
 ];
 
-// 문장/대조절 밖의 부정 표현이 다른 감정까지 뒤집지 않도록 범위를 제한합니다.
+// Share normalization and polarity between emotions, needs, states and intent.
 export function splitClauses(input) {
-  return String(input ?? '')
-    .toLowerCase()
-    .split(
-      /[.!?\n,;]+|하지만|그렇지만|그런데|그래도|지만|는데|인데|그리고|면서/
-    )
-    .map(compact)
-    .filter(Boolean);
+  return emotionClauses(input).map(c => c.text);
 }
-
-function negated(
-  text,
-  index,
-  phrase
-) {
-  const before =
-    text.slice(
-      Math.max(
-        0,
-        index - 4
-      ),
-      index
-    );
-
-  const after =
-    text.slice(
-      index +
-        phrase.length,
-      index +
-        phrase.length +
-        8
-    );
-
-  const intrinsic =
-    /안|못|없|싫|않/.test(
-      phrase
-    );
-
-  return (
-    (!intrinsic &&
-      /(안|못|전혀|그다지|별로)$/.test(
-        before
-      )) ||
-    /^(?:하지|하|하진|하다는|지는|지|진|지는요|다는)?않|^(?:하지)?못|^(?:은|는|다는|다)?아니/.test(
-      after
-    )
-  );
-}
-
-function matches(
-  text,
-  phrases
-) {
-  return phrases.some(raw => {
-    const phrase =
-      compact(raw);
-
-    let start = 0;
-
-    while (true) {
-      const index =
-        text.indexOf(
-          phrase,
-          start
-        );
-
-      if (index < 0)
-        return false;
-
-      if (
-        !negated(
-          text,
-          index,
-          phrase
-        )
-      )
-        return true;
-
-      start =
-        index +
-        phrase.length;
-    }
-  });
-}
-
-function intensity(text) {
-  return /너무|정말|진짜|엄청|완전|죽겠|미치겠|폭발/.test(
-    text
-  )
-    ? 1.3
-    : /조금|약간|살짝|좀/.test(
-        text
-      )
-    ? 0.75
-    : 1;
-}
-
-function keywordScore(
-  text,
-  keywords
-) {
-  const spans = [];
-
-  [
-    ...new Set(
-      keywords.map(compact)
-    )
-  ]
-    .sort(
-      (a, b) =>
-        b.length -
-        a.length
-    )
-    .forEach(phrase => {
-      // '시기', '무료' 등 다의어는 주변 표현과 함께 판단합니다.
-      if (
-        phrase === '시기' &&
-        !/시기(?:해|하|가나|심)/.test(
-          text
-        )
-      )
-        return;
-
-      if (
-        phrase === '무료' &&
-        !/무료(?:해|하|함)/.test(
-          text
-        )
-      )
-        return;
-
-      let start = 0;
-
-      while (true) {
-        const index =
-          text.indexOf(
-            phrase,
-            start
-          );
-
-        if (index < 0)
-          break;
-
-        const end =
-          index +
-          phrase.length;
-        if (
-          !negated(
-            text,
-            index,
-            phrase
-          ) &&
-          !spans.some(
-            s =>
-              index < s.end &&
-              end > s.start
-          )
-        ) {
-          spans.push({
-            start: index,
-            end
-          });
-        }
-
-        start = end;
-      }
-    });
-
-  return (
-    Math.min(
-      3,
-      spans.length
-    ) *
-    1.5 *
-    intensity(text)
-  );
+function matches(text, phrases) {
+  return keywordMatches({ text: compact(text), weight: 1 }, phrases).length > 0;
 }
 
 function deriveNeeds(
@@ -1372,9 +1204,6 @@ export function analyzeEmotion(
     explicitNeeds = {};
   const evidence = [];
 
-  const text =
-    compact(input);
-
   const states =
     stateRules
       .filter(r =>
@@ -1404,7 +1233,7 @@ export function analyzeEmotion(
         EMOTION_GROUPS
       ).forEach(
         ([id, g]) => {
-          const match = scoreEmotionKeywords(contextual, g.keywords);
+          const match = scoreEmotionKeywords(contextual, extendedWords(EMOTION_VOCABULARY, id, id === 'loneliness' ? g.keywords.filter(k => !/대화하고 싶|같이 있고 싶|연락하고 싶|보고 싶|누구랑 얘기/.test(k)) : g.keywords));
           scores[id] =
             (scores[id] ||
               0) + match.score;
@@ -1416,7 +1245,7 @@ export function analyzeEmotion(
       if (contextual.weight !== 1) return;
 
       Object.entries(
-        needPatterns
+        allNeedPatterns
       ).forEach(
         ([
           id,
@@ -1436,7 +1265,7 @@ export function analyzeEmotion(
       );
 
       if (
-        /(?:기분이?|몸이?|속이?|컨디션이?)안좋|좋지않|행복하지않|즐겁지않|별로야/.test(
+        /(?:기분이?|몸이?|속이?|컨디션이?)안좋|별로야/.test(
           clause
         )
       ) {
@@ -1515,9 +1344,7 @@ export function analyzeEmotion(
   const context = [];
 
   if (
-    /뒤처|뒤쳐|뒤떨어|나만제자리|소외|나만빠진/.test(
-      clauses.join(' ')
-    )
+    clauses.some(c => matches(c, ['뒤처', '뒤쳐', '뒤떨어', '나만 제자리', '소외', '나만 빠진']))
   ) {
     context.push({
       id:
@@ -1537,27 +1364,7 @@ export function analyzeEmotion(
       0.7;
   }
 
-  const activities =
-    ACTIVITY_RULES
-      .filter(r =>
-        clauses.some(c =>
-          matches(
-            c,
-            r.patterns
-          )
-        )
-      )
-      .map(
-        ({
-          id,
-          name,
-          emoji
-        }) => ({
-          id,
-          name,
-          emoji
-        })
-      );
+  const { activities, mentions: activityMentions } = recognizeActivities(input, ACTIVITY_RULES);
 
   const signals = {
     lowIntent:
@@ -1570,7 +1377,10 @@ export function analyzeEmotion(
             '못하겠',
             '할 힘이 없',
             '의욕이 없',
-            '하고 싶지 않'
+            '하고 싶지 않',
+            '하고 싶지는 않',
+            '하기가 싫',
+            '의욕이 안 나'
           ]
         )
       ),
@@ -1591,18 +1401,10 @@ export function analyzeEmotion(
       ),
 
     alone:
-      states.some(
-        x =>
-          x.id ===
-          'socialAvoidance'
-      ),
+      Boolean(explicitNeeds.alone),
 
     connection:
-      states.some(
-        x =>
-          x.id ===
-          'socialNeed'
-      )
+      Boolean(explicitNeeds.connection)
   };
 
   return buildResult(
@@ -1619,15 +1421,13 @@ export function analyzeEmotion(
       states,
 
       activities,
+      activityMentions,
 
       context,
 
-      everydayLanguage:
-        [],
-
-      semanticSignals:
-        [],
-      algorithmVersion: 3,
+      everydayLanguage: [...new Set(evidence.flatMap(e => e.phrases))],
+      semanticSignals: activityMentions.map(m => ({ type: 'activity', ...m })),
+      algorithmVersion: 4,
       evidence,
       contextNotes: [...new Set(contextualClauses.map(c => c.reason).filter(Boolean))],
       source: 'inferred'

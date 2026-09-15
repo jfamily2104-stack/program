@@ -7,6 +7,8 @@ export default function EmotionInsight({ analysis, onChange, disabled = false })
   if (!analysis) return null;
   const phrases = [...new Set((analysis.evidence || [])
     .filter(e => e.groupId === analysis.groupId).flatMap(e => e.phrases))].slice(0, 4);
+  const activityLabels = { completed: '한 일', planned: '하고 싶은 일', mentioned: '언급한 활동', avoided: '피하고 싶은 활동', hypothetical: '가정한 활동' };
+  const activities = (analysis.activityMentions || []).filter(a => a.status !== 'reported').slice(0, 4);
   return (
     <View style={{ paddingVertical: 12, gap: 8 }}>
       <Text style={{ color: '#52645C', fontSize: 13, lineHeight: 20 }}>
@@ -14,6 +16,15 @@ export default function EmotionInsight({ analysis, onChange, disabled = false })
           analysis.source === 'follow_up' ? '추가 질문에 고른 답을 우선 반영했어요.' :
           phrases.length ? `분석 단서: ${phrases.map(p => `“${p}”`).join(', ')}` : '뚜렷한 표현이 적어요. 직접 골라도 괜찮아요.'}
       </Text>
+      {!!activities.length && (
+        <View style={{ gap: 4 }}>
+          {activities.map(activity => (
+            <Text key={`${activity.id}:${activity.status}`} style={{ color: '#52645C', fontSize: 13 }}>
+              {activity.emoji} {activityLabels[activity.status] || '언급한 활동'} · {activity.name}
+            </Text>
+          ))}
+        </View>
+      )}
       {!!analysis.contextNotes?.length && (
         <Text style={{ color: '#666', fontSize: 12 }}>
           덜 반영한 표현: {analysis.contextNotes.join(' · ')}
