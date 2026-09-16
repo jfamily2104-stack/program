@@ -1,2 +1,0 @@
-// Compatibility for older copies; use EmotionText.js in new projects.
-export * from './EmotionText.js';

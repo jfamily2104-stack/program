@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, SafeAreaView, Platform, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import HomeScreen from './HomeScreen';
-import ExploreScreen from './ExploreScreen';
-import RecordScreen from './RecordScreen';
-import CharacterScreen from './CharacterScreen';
-import ProfileScreen from './ProfileScreen';
-import CharacterSetup from './CharacterSetup';
-import { analyzeEmotion, applyFollowUpAnswer, getCharacterMemoryMessage } from './EmotionAlgorithm';
-import { normalizeCharacter } from './CharacterData';
-import { loadSnapshot, createCommitQueue, addRecord } from './AppStorage';
-import { s, Button } from './UI';
+import HomeScreen from './components/HomeScreen';
+import ExploreScreen from './components/ExploreScreen';
+import RecordScreen from './components/RecordScreen';
+import CharacterScreen from './components/CharacterScreen';
+import ProfileScreen from './components/ProfileScreen';
+import CharacterSetup from './components/CharacterSetup';
+import { analyzeEmotion, applyFollowUpAnswer, getCharacterMemoryMessage } from './components/EmotionAlgorithm';
+import { normalizeCharacter } from './components/CharacterData';
+import { loadSnapshot, createCommitQueue, addRecord } from './components/AppStorage';
+import { s, Button } from './components/UI';
 
 const tabs = [
   ['home', '🏠', '홈'],

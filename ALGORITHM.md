@@ -22,8 +22,9 @@ analyzer or a newly trained language model.
   `hypothetical` and `reported` statuses. The compatible `activities` field excludes
   avoided, hypothetical and reported mentions. EmotionInsight displays the statuses.
 - Self-selected feelings and valid follow-up choices retain precedence.
-- App imports match this repository's flat file structure. `EmotionText.js` is now
-  a standard JavaScript module; the old extensionless file forwards to it.
+- App modules live in `components/`; `App.js` and the test loader point there.
+  `EmotionText.js` and `PlatformMap.web.js` use the expected module filenames.
+  The only application entry point is the root `index.js`.
 
 ## Verification
 
@@ -49,3 +50,4 @@ Use the updated project in Expo Go and verify Explore/Record with:
 `슬펐습니다`, `기진맥진해`, `실패할까 봐 걱정돼`, and
 `운동은 안 하고 공부했어`. Check displayed emotion candidates, activity labels,
 follow-up choices and saved records. This update was tested in Node, not on a device.
+

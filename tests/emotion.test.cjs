@@ -14,7 +14,7 @@ function load(filename) {
 }
 let ready;
 async function api() {
-  if (!ready) ready = (async () => { const m = load(path.join(__dirname, '../EmotionAlgorithm.js')); await m.link((specifier, parent) => load(path.resolve(path.dirname(parent.identifier), specifier + (path.extname(specifier) ? '' : '.js')))); await m.evaluate(); return m.namespace; })();
+  if (!ready) ready = (async () => { const m = load(path.join(__dirname, '../components/EmotionAlgorithm.js')); await m.link((specifier, parent) => load(path.resolve(path.dirname(parent.identifier), specifier + (path.extname(specifier) ? '' : '.js')))); await m.evaluate(); return m.namespace; })();
   return ready;
 }
 const examples = [
@@ -79,3 +79,4 @@ test('repeated text is not added independent evidence',async()=>{const a=await a
 test('denied need does not set social intent',async()=>{const r=(await api()).analyzeEmotion('친구를 만나고 싶지는 않아');assert(!r.signals.connection);assert(!r.signals.highIntent);});
 test('direct need survives unknown emotion',async()=>{const r=(await api()).analyzeEmotion('그냥 쉬려고 해');assert(r.detectedNeeds.some(n=>n.id==='rest'));});
 for(const input of ['무료쿠폰을 받았다','수치 해석 과제','사랑니 치료','안정제를 먹었다','새로운 책을 읽었어','반복문을 공부했어','사과를 먹었다'])test(`neutral literal: ${input}`,async()=>{assert((await api()).analyzeEmotion(input).unknown,JSON.stringify((await api()).analyzeEmotion(input).candidates));});
+
